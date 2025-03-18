@@ -11,7 +11,7 @@ const config = {
 
 const app = express();
 
-app.get('/', (req, res) => res.send('Hello LINE BOT!(GET)')); //ブラウザ確認用(無くても問題ない)
+app.get('/', (req, res) => res.send('Hello LINE BOT!(Finish)')); //ブラウザ確認用(無くても問題ない)
 app.post('/webhook', line.middleware(config), (req, res) => {
     console.log(req.body.events);
 
