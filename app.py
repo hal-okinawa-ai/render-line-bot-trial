@@ -41,11 +41,7 @@ def connect_sheet():
 # スプレッドシートに紹介データを追加
 def update_spreadsheet(user_id, referral_code, referred_by):
     sheet = connect_sheet()
-    
-    # すでに紹介された回数を確認
     referred_count = len(sheet.findall(referred_by))
-
-    # データを追加
     sheet.append_row([user_id, referral_code, referred_by, referred_count])
     print(f"✅ {user_id} をスプレッドシートに記録しました！")
 
@@ -90,7 +86,6 @@ def generate_referral_code():
 def save_user(line_id, referral_code, referred_by=None):
     conn = connect_db()
     if conn is None:
-        print("❌ データベース接続エラー")
         return
     
     cur = conn.cursor()
@@ -101,7 +96,6 @@ def save_user(line_id, referral_code, referred_by=None):
     """, (line_id, referral_code, referred_by))
     
     conn.commit()
-    print(f"✅ {line_id} を登録しました（紹介コード: {referral_code}）")
     cur.close()
     conn.close()
 
@@ -109,7 +103,6 @@ def save_user(line_id, referral_code, referred_by=None):
 def register_referral(user_id, referral_code):
     conn = connect_db()
     if conn is None:
-        print("❌ データベース接続エラー")
         return False
 
     cur = conn.cursor()
@@ -118,20 +111,11 @@ def register_referral(user_id, referral_code):
 
     if referred_by:
         referred_by_id = referred_by[0]
-
-        # 新規ユーザーに紹介者を登録
         cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by_id, user_id))
         conn.commit()
-
-        print(f"✅ {user_id} が紹介コード {referral_code} で登録されました！")
-
-        # スプレッドシートに記録
         update_spreadsheet(user_id, referral_code, referred_by_id)
-
-        # 新規ユーザーにクーポンを送信
         send_coupon(user_id)
 
-        # 紹介者が3人以上紹介したらクーポンを送信
         cur.execute("SELECT COUNT(*) FROM users WHERE referred_by = %s", (referred_by_id,))
         referral_count = cur.fetchone()[0]
 
@@ -142,25 +126,19 @@ def register_referral(user_id, referral_code):
         conn.close()
         return True
     else:
-        print(f"❌ 紹介コード {referral_code} は存在しません")
         cur.close()
         conn.close()
         return False
 
 # クーポンを送る関数
 def send_coupon(user_id, inviter=False):
-    coupon_url = "https://your-coupon-page.com"  # 実際のクーポンURLに変更
-
-    message_text = "🎁 おめでとうございます！クーポンをプレゼント！\n\n" \
-                   f"🔗 こちらのリンクから受け取ってください: {coupon_url}"
+    coupon_url = "https://your-coupon-page.com"
+    message_text = f"🎁 おめでとうございます！クーポンをプレゼント！\n\n🔗 {coupon_url}"
 
     if inviter:
-        message_text = "🎉 3人以上の友だちを紹介しました！\n" \
-                       "特別クーポンをプレゼントします！\n\n" \
-                       f"🔗 クーポンを受け取る: {coupon_url}"
+        message_text = f"🎉 3人以上の友だちを紹介しました！\n特別クーポンをプレゼントします！\n\n🔗 {coupon_url}"
 
     line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
-    print(f"✅ クーポンを {user_id} に送信しました！（紹介者: {inviter}）")
 
 # 友だち追加時の処理
 @handler.add(FollowEvent)
@@ -168,7 +146,6 @@ def handle_follow(event):
     user_id = event.source.user_id
     referral_code = generate_referral_code()
     save_user(user_id, referral_code)
-
     welcome_message = f"🎉 友だち追加ありがとうございます！\nあなたの紹介コード: {referral_code}\n\n紹介コードをシェアすると特典がもらえます！"
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=welcome_message))
 
