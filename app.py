@@ -57,6 +57,7 @@ def generate_referral_code():
 def save_user(line_id, referral_code, referred_by=None):
     conn = connect_db()
     if conn is None:
+        print("❌ データベース接続エラー")
         return
     
     cur = conn.cursor()
@@ -67,6 +68,7 @@ def save_user(line_id, referral_code, referred_by=None):
     """, (line_id, referral_code, referred_by))
     
     conn.commit()
+    print(f"✅ {line_id} を登録しました（紹介コード: {referral_code}）")
     cur.close()
     conn.close()
 
@@ -163,4 +165,4 @@ def get_users():
 # サーバー起動
 if __name__ == "__main__":
     init_db()  # 初回実行時にデータベースを初期化
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
