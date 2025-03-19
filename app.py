@@ -2,7 +2,21 @@ from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
+import psycopg2
 import os
+
+# 環境変数からDATABASE_URLを取得
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# PostgreSQLに接続
+def connect_db():
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        print("✅ データベース接続成功")
+        return conn
+    except Exception as e:
+        print(f"❌ データベース接続エラー: {e}")
+        return None
 
 app = Flask(__name__)
 
