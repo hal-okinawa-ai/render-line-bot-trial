@@ -101,6 +101,28 @@ def home():
 def favicon():
     return "", 204  # HTTP 204 No Content を返す
 
+# 紹介コードの生成
+def generate_referral_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+# ユーザーをデータベースに保存
+def save_user(line_id, referral_code, referred_by=None):
+    conn = connect_db()
+    if conn is None:
+        return
+    
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO users (line_id, referral_code, referred_by)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (line_id) DO NOTHING
+    """, (line_id, referral_code, referred_by))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+    print(f"✅ ユーザー登録: {line_id} (紹介コード: {referral_code}, 紹介者: {referred_by})")
+
 # 紹介コードの登録 & クーポン配布
 def register_referral(user_id, referral_code):
     conn = connect_db()
@@ -142,28 +164,24 @@ def send_coupon(user_id, inviter=False):
 
     line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
 
-# データベース内のユーザー一覧を取得（デバッグ用）
-@app.route("/users", methods=["GET"])
-def get_users():
-    try:
-        conn = connect_db()
-        if conn is None:
-            return jsonify({"error": "Database connection failed"}), 500
+# メッセージ受信時の処理
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_message = event.message.text
+    user_id = event.source.user_id
 
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM users")
-        users = cur.fetchall()
+    print(f"📩 受信メッセージ: {user_message} (from {user_id})")
 
-        cur.close()
-        conn.close()
+    if user_message.startswith("紹介コード:"):
+        referral_code = user_message.split(":")[1].strip()
+        if register_referral(user_id, referral_code):
+            reply_text = "✅ 紹介コードを登録しました！"
+        else:
+            reply_text = "❌ 無効な紹介コードです"
+    else:
+        reply_text = "❓ 紹介コードを入力する場合は「紹介コード:XXXXXX」と送信してください。"
 
-        if not users:
-            return jsonify({"message": "No users found"}), 404
-
-        return jsonify(users)
-
-    except Exception as e:
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
 
 if __name__ == "__main__":
     init_db()
