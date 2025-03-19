@@ -14,8 +14,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 DATABASE_URL = os.getenv("DATABASE_URL")
 LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
-SHEET_ID = os.getenv("SHEET_ID")  # GoogleスプレッドシートのID
-SHEET_NAME = os.getenv("SHEET_NAME", "紹介データ")  # 環境変数がなければデフォルト値を設定
+SHEET_ID = os.getenv("SHEET_ID")
+SHEET_NAME = os.getenv("SHEET_NAME", "紹介データ")
 
 # LINE APIの設定
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
@@ -44,10 +44,6 @@ def connect_sheet():
         print(f"🔍 SHEET_ID: {SHEET_ID}, SHEET_NAME: {SHEET_NAME}")  # デバッグ用
         sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
         return sheet
-    except json.JSONDecodeError as e:
-        print(f"❌ GOOGLE_SERVICE_ACCOUNT のJSONデコードエラー: {e}")
-    except gspread.exceptions.SpreadsheetNotFound:
-        print(f"❌ エラー: スプレッドシート ID '{SHEET_ID}' が見つかりません。")
     except gspread.exceptions.WorksheetNotFound:
         print(f"❌ エラー: 指定されたシート '{SHEET_NAME}' が見つかりません。")
     except Exception as e:
@@ -100,78 +96,6 @@ def init_db():
     conn.close()
     print("✅ ユーザーテーブル作成完了")
 
-# 友だち追加時の処理
-@handler.add(FollowEvent)
-def handle_follow(event):
-    user_id = event.source.user_id
-    referral_code = generate_referral_code()
-    
-    conn = connect_db()
-    if conn is None:
-        print("❌ データベース接続エラー（ユーザー登録失敗）")
-        return
-
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO users (line_id, referral_code)
-        VALUES (%s, %s)
-        ON CONFLICT (line_id) DO NOTHING
-    """, (user_id, referral_code))
-    
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    print(f"✅ ユーザー登録: {user_id} (紹介コード: {referral_code})")
-
-    welcome_message = f"🎉 友だち追加ありがとうございます！\nあなたの紹介コード: {referral_code}\n\n紹介コードをシェアすると特典がもらえます！"
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=welcome_message))
-
-# Webhookエンドポイント（LINE メッセージ処理）
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    signature = request.headers.get("X-Line-Signature")
-    body = request.get_data(as_text=True)
-
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        return "Invalid Signature", 400
-
-    return "OK", 200
-
-# ルートエンドポイント（動作確認用）
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "LINE Bot is running!"})
-
-# `favicon.ico` が `404` になるのを防ぐ
-@app.route("/favicon.ico")
-def favicon():
-    return "", 204  # HTTP 204 No Content を返す
-
-# 紹介コードの生成
-def generate_referral_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-# ユーザーをデータベースに保存
-def save_user(line_id, referral_code, referred_by=None):
-    conn = connect_db()
-    if conn is None:
-        return
-    
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO users (line_id, referral_code, referred_by)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (line_id) DO NOTHING
-    """, (line_id, referral_code, referred_by))
-    
-    conn.commit()
-    cur.close()
-    conn.close()
-    print(f"✅ ユーザー登録: {line_id} (紹介コード: {referral_code}, 紹介者: {referred_by})")
-
 # 紹介コードの登録 & クーポン配布
 def register_referral(user_id, referral_code):
     conn = connect_db()
@@ -211,26 +135,44 @@ def send_coupon(user_id, inviter=False):
     if inviter:
         message_text = f"🎉 3人以上の友だちを紹介しました！\n特別クーポンをプレゼントします！\n\n🔗 {coupon_url}"
 
-    line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
+    try:
+        line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
+        print(f"✅ クーポンを {user_id} に送信しました！")
+    except Exception as e:
+        print(f"❌ クーポン送信エラー: {e}")
 
-# メッセージ受信時の処理
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    user_message = event.message.text
-    user_id = event.source.user_id
+# ルートエンドポイント
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "LINE Bot is running!"})
 
-    print(f"📩 受信メッセージ: {user_message} (from {user_id})")
+# `favicon.ico` 404を防ぐ
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
 
-    if user_message.startswith("紹介コード:"):
-        referral_code = user_message.split(":")[1].strip()
-        if register_referral(user_id, referral_code):
-            reply_text = "✅ 紹介コードを登録しました！"
-        else:
-            reply_text = "❌ 無効な紹介コードです"
-    else:
-        reply_text = "❓ 紹介コードを入力する場合は「紹介コード:XXXXXX」と送信してください。"
+# `/users` エンドポイント（登録されたユーザーを取得）
+@app.route("/users", methods=["GET"])
+def get_users():
+    try:
+        conn = connect_db()
+        if conn is None:
+            return jsonify({"error": "Database connection failed"}), 500
 
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users")
+        users = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        if not users:
+            return jsonify({"message": "No users found"}), 404
+
+        return jsonify(users)
+
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     init_db()
