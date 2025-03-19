@@ -100,6 +100,33 @@ def init_db():
     conn.close()
     print("✅ ユーザーテーブル作成完了")
 
+# 友だち追加時の処理
+@handler.add(FollowEvent)
+def handle_follow(event):
+    user_id = event.source.user_id
+    referral_code = generate_referral_code()
+    
+    conn = connect_db()
+    if conn is None:
+        print("❌ データベース接続エラー（ユーザー登録失敗）")
+        return
+
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO users (line_id, referral_code)
+        VALUES (%s, %s)
+        ON CONFLICT (line_id) DO NOTHING
+    """, (user_id, referral_code))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    print(f"✅ ユーザー登録: {user_id} (紹介コード: {referral_code})")
+
+    welcome_message = f"🎉 友だち追加ありがとうございます！\nあなたの紹介コード: {referral_code}\n\n紹介コードをシェアすると特典がもらえます！"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=welcome_message))
+
 # Webhookエンドポイント（LINE メッセージ処理）
 @app.route("/webhook", methods=["POST"])
 def webhook():
