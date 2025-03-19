@@ -1,36 +1,129 @@
-from flask import Flask, request
+import os
+import psycopg2
+from flask import Flask, request, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
-import psycopg2
-import os
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, FollowEvent
+import random
+import string
 
-# 環境変数からDATABASE_URLを取得
+# 環境変数から設定を取得
 DATABASE_URL = os.getenv("DATABASE_URL")
+LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 
-# PostgreSQLに接続
+# LINE APIの設定
+line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
+handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
+# Flaskアプリの設定
+app = Flask(__name__)
+
+# データベース接続
 def connect_db():
     try:
         conn = psycopg2.connect(DATABASE_URL)
-        print("✅ データベース接続成功")
         return conn
     except Exception as e:
         print(f"❌ データベース接続エラー: {e}")
         return None
 
-app = Flask(__name__)
+# ユーザーテーブルを作成（初回実行時のみ）
+def init_db():
+    conn = connect_db()
+    if conn is None:
+        return
 
-# 環境変数からLINE APIの認証情報を取得
-LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            line_id TEXT UNIQUE,
+            referral_code TEXT,
+            referred_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+    print("✅ ユーザーテーブル作成完了")
 
-line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
-handler = WebhookHandler(LINE_CHANNEL_SECRET)
+# 紹介コードの生成
+def generate_referral_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-@app.route("/")
-def home():
-    return "LINE Bot is running!"
+# ユーザーをデータベースに保存
+def save_user(line_id, referral_code, referred_by=None):
+    conn = connect_db()
+    if conn is None:
+        return
+    
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO users (line_id, referral_code, referred_by)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (line_id) DO NOTHING
+    """, (line_id, referral_code, referred_by))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
 
+# 紹介コードの登録
+def register_referral(user_id, referral_code):
+    conn = connect_db()
+    if conn is None:
+        return False
+
+    cur = conn.cursor()
+    cur.execute("SELECT line_id FROM users WHERE referral_code = %s", (referral_code,))
+    referred_by = cur.fetchone()
+
+    if referred_by:
+        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by[0], user_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    else:
+        cur.close()
+        conn.close()
+        return False
+
+# 友だち追加時の処理
+@handler.add(FollowEvent)
+def handle_follow(event):
+    user_id = event.source.user_id
+    referral_code = generate_referral_code()
+
+    # ユーザーをDBに保存
+    save_user(user_id, referral_code)
+
+    # メッセージを送信
+    welcome_message = f"🎉 友だち追加ありがとうございます！\nあなたの紹介コード: {referral_code}\n\n紹介コードをシェアすると特典がもらえます！"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=welcome_message))
+
+# メッセージ受信時の処理
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_message = event.message.text
+    user_id = event.source.user_id
+
+    if user_message.startswith("紹介コード:"):
+        referral_code = user_message.split(":")[1].strip()
+        
+        if register_referral(user_id, referral_code):
+            reply_text = "✅ 紹介コードを登録しました！"
+        else:
+            reply_text = "❌ 無効な紹介コードです"
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+    else:
+        reply_text = "❓ 紹介コードを入力する場合は「紹介コード:XXXXXX」と送信してください。"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+
+# Webhookエンドポイント
 @app.route("/webhook", methods=["POST"])
 def webhook():
     signature = request.headers["X-Line-Signature"]
@@ -43,11 +136,23 @@ def webhook():
 
     return "OK", 200
 
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    user_message = event.message.text
-    reply_text = f"あなたの紹介コードは: {event.source.user_id[:6]}"
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+# データベース内のユーザー一覧を取得（デバッグ用）
+@app.route("/users", methods=["GET"])
+def get_users():
+    conn = connect_db()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+    
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users")
+    users = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return jsonify(users)
 
+# サーバー起動
 if __name__ == "__main__":
+    init_db()  # 初回実行時にデータベースを初期化
     app.run(host="0.0.0.0", port=10000)
