@@ -29,7 +29,7 @@ app.config["DEBUG"] = True  # デバッグモード有効化
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
-    
+
     service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
     if service_account_info is None:
@@ -174,6 +174,15 @@ def get_users():
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
-if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+# Webhookエンドポイント
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    signature = request.headers.get("X-Line-Signature")
+    body = request.get_data(as_text=True)
+
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+
+    return "OK"
