@@ -1,4 +1,5 @@
 import os
+import json
 import psycopg2
 import gspread
 from flask import Flask, request, jsonify
@@ -13,7 +14,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 DATABASE_URL = os.getenv("DATABASE_URL")
 LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
-SHEET_ID = os.getenv("SHEET_ID")  # Google スプレッドシート ID
+SHEET_ID = os.getenv("SHEET_ID")  # GoogleスプレッドシートのID
 SHEET_NAME = "紹介データ"
 
 # LINE APIの設定
@@ -28,7 +29,11 @@ app.config["DEBUG"] = True  # デバッグモード有効化
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+    
+    # 環境変数から JSON をロード
+    service_account_info = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT"))
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+
     client = gspread.authorize(creds)
     sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
     return sheet
