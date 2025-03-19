@@ -139,18 +139,26 @@ def webhook():
 # データベース内のユーザー一覧を取得（デバッグ用）
 @app.route("/users", methods=["GET"])
 def get_users():
-    conn = connect_db()
-    if conn is None:
-        return jsonify({"error": "Database connection failed"}), 500
-    
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM users")
-    users = cur.fetchall()
-    
-    cur.close()
-    conn.close()
-    
-    return jsonify(users)
+    try:
+        conn = connect_db()
+        if conn is None:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users")
+        users = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        # ユーザー情報がない場合
+        if not users:
+            return jsonify({"message": "No users found"}), 404
+
+        return jsonify(users)
+
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 # サーバー起動
 if __name__ == "__main__":
