@@ -101,6 +101,47 @@ def home():
 def favicon():
     return "", 204  # HTTP 204 No Content を返す
 
+# 紹介コードの登録 & クーポン配布
+def register_referral(user_id, referral_code):
+    conn = connect_db()
+    if conn is None:
+        return False
+
+    cur = conn.cursor()
+    cur.execute("SELECT line_id FROM users WHERE referral_code = %s", (referral_code,))
+    referred_by = cur.fetchone()
+
+    if referred_by:
+        referred_by_id = referred_by[0]
+        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by_id, user_id))
+        conn.commit()
+        update_spreadsheet(user_id, referral_code, referred_by_id)
+        send_coupon(user_id)
+
+        cur.execute("SELECT COUNT(*) FROM users WHERE referred_by = %s", (referred_by_id,))
+        referral_count = cur.fetchone()[0]
+
+        if referral_count >= 3:
+            send_coupon(referred_by_id, inviter=True)
+
+        cur.close()
+        conn.close()
+        return True
+    else:
+        cur.close()
+        conn.close()
+        return False
+
+# クーポンを送る関数
+def send_coupon(user_id, inviter=False):
+    coupon_url = "https://your-coupon-page.com"
+    message_text = f"🎁 おめでとうございます！クーポンをプレゼント！\n\n🔗 {coupon_url}"
+
+    if inviter:
+        message_text = f"🎉 3人以上の友だちを紹介しました！\n特別クーポンをプレゼントします！\n\n🔗 {coupon_url}"
+
+    line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
+
 # データベース内のユーザー一覧を取得（デバッグ用）
 @app.route("/users", methods=["GET"])
 def get_users():
