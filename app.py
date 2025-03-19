@@ -166,6 +166,29 @@ def handle_message(event):
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
 
+# データベース内のユーザー一覧を取得（デバッグ用）
+@app.route("/users", methods=["GET"])
+def get_users():
+    try:
+        conn = connect_db()
+        if conn is None:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users")
+        users = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        if not users:
+            return jsonify({"message": "No users found"}), 404
+
+        return jsonify(users)
+
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
