@@ -15,7 +15,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 SHEET_ID = os.getenv("SHEET_ID")  # GoogleスプレッドシートのID
-SHEET_NAME = os.getenv("SHEET_NAME", "date")  # 環境変数がなければデフォルト値を設定
+SHEET_NAME = os.getenv("SHEET_NAME", "紹介データ")  # 環境変数がなければデフォルト値を設定
 
 # LINE APIの設定
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
