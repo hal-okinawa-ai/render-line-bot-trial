@@ -15,7 +15,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 SHEET_ID = os.getenv("SHEET_ID")  # GoogleスプレッドシートのID
-SHEET_NAME = "紹介データ"
+SHEET_NAME = os.getenv("SHEET_NAME", "date")  # 環境変数がなければデフォルト値を設定
 
 # LINE APIの設定
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
@@ -29,24 +29,19 @@ app.config["DEBUG"] = True  # デバッグモード有効化
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
-
+    
     # 環境変数から JSON をロード
-    service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT")
-
-    if service_account_info is None:
-        print("❌ 環境変数 GOOGLE_SERVICE_ACCOUNT が設定されていません")
-        return None
-
-    try:
-        creds_dict = json.loads(service_account_info)
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    except json.JSONDecodeError as e:
-        print(f"❌ GOOGLE_SERVICE_ACCOUNT のJSONデコードエラー: {e}")
-        return None
-
+    service_account_info = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT"))
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+    
     client = gspread.authorize(creds)
-    sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
-    return sheet
+    
+    try:
+        sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+        return sheet
+    except gspread.exceptions.WorksheetNotFound:
+        print(f"❌ エラー: 指定されたシート '{SHEET_NAME}' が見つかりません。")
+        return None
 
 # スプレッドシートに紹介データを追加
 def update_spreadsheet(user_id, referral_code, referred_by):
