@@ -61,6 +61,8 @@ def init_db():
             line_id TEXT UNIQUE,
             referral_code TEXT,
             referred_by TEXT,
+            coupon_sent BOOLEAN DEFAULT FALSE,
+            inviter_coupon_sent BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -92,10 +94,11 @@ def save_user(line_id, referral_code, referred_by=None):
     cur.close()
     conn.close()
 
-# 紹介コードの登録
+# 紹介コードの登録 & クーポン配布
 def register_referral(user_id, referral_code):
     conn = connect_db()
     if conn is None:
+        print("❌ データベース接続エラー")
         return False
 
     cur = conn.cursor()
@@ -103,15 +106,62 @@ def register_referral(user_id, referral_code):
     referred_by = cur.fetchone()
 
     if referred_by:
-        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by[0], user_id))
+        referred_by_id = referred_by[0]
+
+        # 新規ユーザーに紹介者を登録
+        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by_id, user_id))
         conn.commit()
+
+        print(f"✅ {user_id} が紹介コード {referral_code} で登録されました！")
+
+        # 新規ユーザーにクーポンを送信
+        send_coupon(user_id)
+
+        # 紹介者が3人以上紹介したらクーポンを送信
+        cur.execute("SELECT COUNT(*) FROM users WHERE referred_by = %s", (referred_by_id,))
+        referral_count = cur.fetchone()[0]
+
+        if referral_count >= 3:
+            send_coupon(referred_by_id, inviter=True)
+
         cur.close()
         conn.close()
         return True
     else:
+        print(f"❌ 紹介コード {referral_code} は存在しません")
         cur.close()
         conn.close()
         return False
+
+# クーポンを送る関数
+def send_coupon(user_id, inviter=False):
+    coupon_url = "https://your-coupon-page.com"  # 実際のクーポンURLに変更
+
+    message_text = "🎁 おめでとうございます！クーポンをプレゼント！\n\n" \
+                   f"🔗 こちらのリンクから受け取ってください: {coupon_url}"
+
+    if inviter:
+        message_text = "🎉 3人以上の友だちを紹介しました！\n" \
+                       "特別クーポンをプレゼントします！\n\n" \
+                       f"🔗 クーポンを受け取る: {coupon_url}"
+
+    # LINEメッセージを送信
+    line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
+
+    print(f"✅ クーポンを {user_id} に送信しました！（紹介者: {inviter}）")
+
+    # クーポン送信済みを記録
+    conn = connect_db()
+    cur = conn.cursor()
+
+    if inviter:
+        cur.execute("UPDATE users SET inviter_coupon_sent = TRUE WHERE line_id = %s", (user_id,))
+    else:
+        cur.execute("UPDATE users SET coupon_sent = TRUE WHERE line_id = %s", (user_id,))
+
+    conn.commit()
+    cur.close()
+    conn.close()
 
 # 友だち追加時の処理
 @handler.add(FollowEvent)
@@ -134,7 +184,7 @@ def handle_message(event):
 
     if user_message.startswith("紹介コード:"):
         referral_code = user_message.split(":")[1].strip()
-        
+
         if register_referral(user_id, referral_code):
             reply_text = "✅ 紹介コードを登録しました！"
         else:
@@ -144,29 +194,6 @@ def handle_message(event):
     else:
         reply_text = "❓ 紹介コードを入力する場合は「紹介コード:XXXXXX」と送信してください。"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
-
-# データベース内のユーザー一覧を取得（デバッグ用）
-@app.route("/users", methods=["GET"])
-def get_users():
-    try:
-        conn = connect_db()
-        if conn is None:
-            return jsonify({"error": "Database connection failed"}), 500
-
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM users")
-        users = cur.fetchall()
-
-        cur.close()
-        conn.close()
-
-        if not users:
-            return jsonify({"message": "No users found"}), 404
-
-        return jsonify(users)
-
-    except Exception as e:
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 # サーバー起動
 if __name__ == "__main__":
