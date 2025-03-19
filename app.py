@@ -29,10 +29,20 @@ app.config["DEBUG"] = True  # デバッグモード有効化
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
-    
+
     # 環境変数から JSON をロード
-    service_account_info = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT"))
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+    service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT")
+
+    if service_account_info is None:
+        print("❌ 環境変数 GOOGLE_SERVICE_ACCOUNT が設定されていません")
+        return None
+
+    try:
+        creds_dict = json.loads(service_account_info)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    except json.JSONDecodeError as e:
+        print(f"❌ GOOGLE_SERVICE_ACCOUNT のJSONデコードエラー: {e}")
+        return None
 
     client = gspread.authorize(creds)
     sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
