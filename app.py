@@ -30,22 +30,39 @@ def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
     
-    # 環境変数から JSON をロード
-    service_account_info = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT"))
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
-    
-    client = gspread.authorize(creds)
-    
+    service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT")
+
+    if service_account_info is None:
+        print("❌ 環境変数 GOOGLE_SERVICE_ACCOUNT が設定されていません")
+        return None
+
     try:
+        creds_dict = json.loads(service_account_info)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+
+        print(f"🔍 SHEET_ID: {SHEET_ID}, SHEET_NAME: {SHEET_NAME}")  # デバッグ用
         sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
         return sheet
+    except json.JSONDecodeError as e:
+        print(f"❌ GOOGLE_SERVICE_ACCOUNT のJSONデコードエラー: {e}")
+    except gspread.exceptions.SpreadsheetNotFound:
+        print(f"❌ エラー: スプレッドシート ID '{SHEET_ID}' が見つかりません。")
     except gspread.exceptions.WorksheetNotFound:
         print(f"❌ エラー: 指定されたシート '{SHEET_NAME}' が見つかりません。")
-        return None
+    except Exception as e:
+        print(f"❌ 予期しないエラー: {e}")
+
+    return None
 
 # スプレッドシートに紹介データを追加
 def update_spreadsheet(user_id, referral_code, referred_by):
     sheet = connect_sheet()
+
+    if sheet is None:
+        print("❌ スプレッドシートの接続に失敗しました。データを記録できません。")
+        return
+
     referred_count = len(sheet.findall(referred_by))
     sheet.append_row([user_id, referral_code, referred_by, referred_count])
     print(f"✅ {user_id} をスプレッドシートに記録しました！")
