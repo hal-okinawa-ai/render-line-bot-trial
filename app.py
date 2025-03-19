@@ -29,7 +29,7 @@ app.config["DEBUG"] = True  # デバッグモード有効化
 def connect_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
              "https://www.googleapis.com/auth/drive"]
-    
+
     service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
     if service_account_info is None:
@@ -96,6 +96,10 @@ def init_db():
     conn.close()
     print("✅ ユーザーテーブル作成完了")
 
+# 紹介コードの生成
+def generate_referral_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
 # 紹介コードの登録 & クーポン配布
 def register_referral(user_id, referral_code):
     conn = connect_db()
@@ -141,6 +145,34 @@ def send_coupon(user_id, inviter=False):
     except Exception as e:
         print(f"❌ クーポン送信エラー: {e}")
 
+# 友だち追加時の処理
+@handler.add(FollowEvent)
+def handle_follow(event):
+    user_id = event.source.user_id
+    referral_code = generate_referral_code()
+    
+    conn = connect_db()
+    if conn is None:
+        print("❌ データベース接続エラー（ユーザー登録失敗）")
+        line_bot_api.push_message(user_id, TextSendMessage(text="🚨 エラーが発生しました。サポートにお問い合わせください。"))
+        return
+
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO users (line_id, referral_code)
+        VALUES (%s, %s)
+        ON CONFLICT (line_id) DO NOTHING
+    """, (user_id, referral_code))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    print(f"✅ ユーザー登録: {user_id} (紹介コード: {referral_code})")
+
+    welcome_message = f"🎉 友だち追加ありがとうございます！\nあなたの紹介コード: {referral_code}\n\n紹介コードをシェアすると特典がもらえます！"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=welcome_message))
+
 # ルートエンドポイント
 @app.route("/", methods=["GET"])
 def home():
@@ -173,7 +205,8 @@ def get_users():
 
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
-    
+
+# Webhookエンドポイント
 @app.route("/webhook", methods=["POST"])
 def webhook():
     signature = request.headers.get("X-Line-Signature")
@@ -185,6 +218,32 @@ def webhook():
         return "Invalid Signature", 400
 
     return "OK", 200
+
+# メッセージ受信時の処理
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_message = event.message.text
+    user_id = event.source.user_id
+
+    print(f"📩 受信メッセージ: {user_message} (from {user_id})")
+
+    if user_message.startswith("紹介コード:"):
+        referral_code = user_message.split(":")[1].strip()
+        print(f"🔍 紹介コード受信: {referral_code} (from {user_id})")
+
+        if register_referral(user_id, referral_code):
+            reply_text = f"✅ 紹介コード {referral_code} を登録しました！"
+        else:
+            reply_text = "❌ 無効な紹介コードです"
+
+    else:
+        reply_text = "❓ 紹介コードを入力する場合は「紹介コード:XXXXXX」と送信してください。"
+
+    try:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+        print(f"📩 返信メッセージ送信: {reply_text}")
+    except Exception as e:
+        print(f"❌ LINEメッセージ送信エラー: {e}")
 
 if __name__ == "__main__":
     init_db()
