@@ -173,6 +173,18 @@ def get_users():
 
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    signature = request.headers.get("X-Line-Signature")
+    body = request.get_data(as_text=True)
+
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        return "Invalid Signature", 400
+
+    return "OK", 200
 
 if __name__ == "__main__":
     init_db()
