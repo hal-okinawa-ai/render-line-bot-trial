@@ -1,5 +1,0 @@
-flask
-requests
-gunicorn
-line-bot-sdk
-psycopg2-binary  # PostgreSQLを使う場合
