@@ -1,4 +1,4 @@
-# message.py
+from linebot.models import TextSendMessage  # ←追加
 from utils.referral import register_referral
 
 def handle_message(event, line_bot_api):
