@@ -1,11 +1,7 @@
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import TextSendMessage
 from utils.referral import register_referral
-from config import LINE_ACCESS_TOKEN
-from linebot import LineBotApi
 
-line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
-
-def handle_message(event):
+def handle_message(event, line_bot_api):
     user_message = event.message.text
     user_id = event.source.user_id
 
