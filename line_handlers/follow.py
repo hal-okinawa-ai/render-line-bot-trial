@@ -1,43 +1,47 @@
-from linebot.models import FollowEvent, TextSendMessage
-from linebot import LineBotApi
-from config import LINE_ACCESS_TOKEN, YOUR_BOT_ID
+from linebot.models import TextSendMessage
+from coupon import generate_coupon_code, send_coupon
 from database import connect_db
 from utils.referral_code import generate_referral_code
-from .profile import get_user_name
+from linebot import LineBotApi
+from config import LINE_ACCESS_TOKEN
+from datetime import datetime, timezone, timedelta
 
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 
-def handle_follow(event: FollowEvent):
+def handle_follow(event):
     user_id = event.source.user_id
-    display_name = get_user_name(user_id)
+    profile = line_bot_api.get_profile(user_id)
+    display_name = profile.display_name
+
+    # 紹介コードとクーポンコードの生成
     referral_code = generate_referral_code()
+    coupon_code = generate_coupon_code()
 
+    # 日本時間の取得
+    japan_time = datetime.now(timezone(timedelta(hours=9)))
+
+    # データベースにユーザー情報を保存
     conn = connect_db()
-    if conn is None:
-        print("❌ DB接続エラー")
-        line_bot_api.push_message(user_id, TextSendMessage(text="システムエラーが発生しました。"))
-        return
-
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO users (line_id, referral_code, display_name)
-        VALUES (%s, %s, %s)
+        INSERT INTO users (line_id, display_name, referral_code, coupon_code, created_at)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (line_id) DO NOTHING
-    """, (user_id, referral_code, display_name))
+    """, (user_id, display_name, referral_code, coupon_code, japan_time))
 
     conn.commit()
     cur.close()
     conn.close()
 
-    # 招待用URL（友だちに共有するURL）を作成
-    invite_url = f"https://line.me/R/ti/p/@{YOUR_BOT_ID}?referral_code={referral_code}"
+    print(f"✅ ユーザー登録完了: {display_name} ({user_id}), 紹介コード: {referral_code}, クーポンコード: {coupon_code}")
 
-    # メッセージにユーザー自身の紹介コードも表示
+    # ウェルカムメッセージとクーポン送信
     welcome_message = (
-        f"🎉 {display_name}さん、友だち追加ありがとうございます！\n\n"
-        f"✅ あなたの招待コード：{referral_code}\n\n"
-        f"🔗 あなた専用の招待URLはこちら👇\n{invite_url}\n\n"
-        "友だちにシェアして特典をゲットしましょう！"
+        f"🎉 友だち追加ありがとうございます、{display_name}さん！\n\n"
+        f"あなたの紹介コード: 【{referral_code}】\n"
+        f"お友達を紹介すると特典があります！\n\n"
+        f"🎁 クーポンコード：【{coupon_code}】をプレゼント！\n"
+        "🔗 https://your-coupon-page.com"
     )
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=welcome_message))

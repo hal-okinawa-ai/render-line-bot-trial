@@ -2,6 +2,7 @@ from database import connect_db
 from spreadsheet import update_spreadsheet
 from line_handlers.profile import get_user_name
 from line_handlers.coupon import send_coupon
+now_japan_time = get_japan_time()  # ← 日本時間取得
 
 def register_referral(user_id, referral_code):
     conn = connect_db()
