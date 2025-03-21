@@ -1,17 +1,18 @@
 from linebot.models import TextSendMessage
-from config import YOUR_BOT_ID
+from config import LINE_ACCESS_TOKEN
 from .coupon import generate_coupon_code, send_coupon
 from database import connect_db
 from utils.referral_code import generate_referral_code
 from .profile import get_user_name
 from spreadsheet import update_spreadsheet
+from linebot import LineBotApi
 
+line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 
-def handle_follow(event, line_bot_api):
+def handle_follow(event):
     user_id = event.source.user_id
-    referral_code = generate_referral_code()
     display_name = get_user_name(user_id)
-
+    referral_code = generate_referral_code()
     coupon_code = generate_coupon_code()
 
     conn = connect_db()
@@ -26,21 +27,21 @@ def handle_follow(event, line_bot_api):
     cur.close()
     conn.close()
 
-    # スプレッドシートに新規ユーザーを追加
-    update_spreadsheet(user_id, referral_code, None, display_name, None)
+    # スプレッドシート更新
+    update_spreadsheet(user_id, referral_code, None, display_name, None, None)
 
+    # 新規ユーザーへのメッセージ
     welcome_message = (
-        f"🎉 {display_name}さん、友だち追加ありがとうございます！\n\n"
-        f"あなたの紹介コード: 【{referral_code}】\n"
-        f"このコードを友だちにシェアして特典をゲットしましょう！\n\n"
-        f"🎁 特典クーポンコード: 【{coupon_code}】"
+        f"ご登録ありがとうございます！\n\n"
+        f"クーポンコードはこちらです！\n\n"
+        f"【{coupon_code}】"
     )
 
-    # メッセージ送信
+    # この返信処理が必要です
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=welcome_message)
     )
 
-    # クーポン送信
+    # クーポンをLINEでも送信
     send_coupon(user_id, coupon_code)
