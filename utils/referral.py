@@ -2,6 +2,7 @@ from database import connect_db
 from spreadsheet import update_spreadsheet
 from line_handlers.profile import get_user_name
 from line_handlers.coupon import send_coupon
+from utils.time_utils import get_japan_time
 
 def register_referral(user_id, referral_code):
     conn = connect_db()
@@ -21,9 +22,17 @@ def register_referral(user_id, referral_code):
         # 本人と紹介者の名前を取得
         display_name = get_user_name(user_id)
         inviter_name = get_user_name(referred_by_id)
+        now_japan_time = get_japan_time()  # ← 日本時間取得
 
         # 必ず新規行としてスプレッドシートを更新（重複回避なし）
-        update_spreadsheet(user_id, referral_code, referred_by_id, display_name, inviter_name)
+        update_spreadsheet(
+            user_id,
+            referral_code,
+            referred_by_id,
+            display_name,
+            inviter_name,
+            now_japan_time  # ← 日本時間追加
+          )
 
         # 紹介された本人にクーポンを送信
         send_coupon(user_id)
