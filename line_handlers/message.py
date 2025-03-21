@@ -1,3 +1,4 @@
+from utils.referral import register_referral
 from linebot.models import MessageEvent, TextMessage
 
 def handle_message(event, line_bot_api):
