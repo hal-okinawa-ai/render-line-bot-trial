@@ -31,7 +31,8 @@ def handle_follow(event, line_bot_api):
 
     welcome_message = (
         f"ご登録ありがとうございます！\n\n"
-        f"クーポンコードはこちらです！: 【{coupon_code}】"
+        f"クーポンコードはこちらです！\n\n"
+        f"【{coupon_code}】"
     )
 
     # welcome_message = (
