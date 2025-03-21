@@ -30,7 +30,7 @@ def handle_follow(event: FollowEvent):
     conn.close()
 
     # 招待URLを作成（実際のあなたのBotのIDに置き換えてください）
-    invite_url = f"https://line.me/R/ti/p/@{YOUR_BOT_ID}?referral_code={referral_code}"
+    invite_url = f"https://line.me/R/ti/p/@558hsyof?referral_code={referral_code}"
 
     # メッセージに招待用URLを追加
     welcome_message = (
