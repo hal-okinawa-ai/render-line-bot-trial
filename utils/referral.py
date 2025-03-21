@@ -51,7 +51,7 @@ def register_referral(user_id, referral_code):
         referral_count = cur.fetchone()[0]
 
         # 紹介者に特別クーポン（3人以上）
-        if referral_count >= 3:
+        if referral_count >= 1:
             send_coupon(referred_by_id, inviter=True)
 
         cur.close()
