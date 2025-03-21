@@ -9,4 +9,4 @@ def get_user_name(user_id):
         return profile.display_name
     except Exception as e:
         print(f"❌ 表示名取得エラー: {e}")
-        return "不明"
+        return None
