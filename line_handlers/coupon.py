@@ -1,18 +1,15 @@
-from linebot import LineBotApi
+import random
+import string
 from linebot.models import TextSendMessage
-from config import LINE_ACCESS_TOKEN
 
-line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
+def generate_coupon_code(length=8):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
-def send_coupon(user_id, inviter=False):
+def send_coupon(line_bot_api, user_id, coupon_code, inviter=False):
     coupon_url = "https://your-coupon-page.com"
-    message_text = f"🎁 おめでとうございます！クーポンをプレゼント！\n\n🔗 {coupon_url}"
+    message_text = f"🎁 おめでとうございます！クーポンコードをプレゼントします！\n\n🔗 {coupon_url}\n\nクーポンコード: {coupon_code}"
 
     if inviter:
-        message_text = f"🎉 3人以上の友だちを紹介しました！\n特別クーポンをプレゼントします！\n\n🔗 {coupon_url}"
+        message_text = f"🎉 お友達の紹介ありがとうございます！特別クーポンをプレゼントします！\n\n🔗 {coupon_url}\n\nクーポンコード: {coupon_code}"
 
-    try:
-        line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
-        print(f"✅ クーポンを {user_id} に送信しました！")
-    except Exception as e:
-        print(f"❌ クーポン送信エラー: {e}")
+    line_bot_api.push_message(user_id, TextSendMessage(text=message_text))
