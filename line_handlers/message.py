@@ -1,13 +1,13 @@
+from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from utils.referral import register_referral
-from linebot.models import MessageEvent, TextMessage
+from config import LINE_ACCESS_TOKEN
+from linebot import LineBotApi
 
-def handle_message(event, line_bot_api):
-    user_id = event.source.user_id
-    if not user_id:
-        print("❌ 無効なユーザーIDです。")
-        return
+line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 
+def handle_message(event):
     user_message = event.message.text
+    user_id = event.source.user_id
 
     if user_message.startswith("紹介コード:"):
         referral_code = user_message.split(":")[1].strip()
