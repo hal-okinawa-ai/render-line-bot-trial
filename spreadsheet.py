@@ -5,7 +5,8 @@ from config import SHEET_ID, SHEET_NAME, GOOGLE_SERVICE_ACCOUNT
 
 def connect_sheet():
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
+        scope = ["https://spreadsheets.google.com/feeds",
+                 "https://www.googleapis.com/auth/spreadsheets",
                  "https://www.googleapis.com/auth/drive"]
         creds_dict = json.loads(GOOGLE_SERVICE_ACCOUNT)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
