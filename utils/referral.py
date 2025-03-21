@@ -34,7 +34,7 @@ def register_referral(user_id, referral_code):
         update_spreadsheet(user_id, referral_code, referred_by_id, display_name, inviter_name)
 
         # 紹介された人への招待URLを送信
-        invite_url = f"https://line.me/R/ti/p/@{YOUR_BOT_ID}?referral_code={new_referral_code}"
+        invite_url = f"https://line.me/R/ti/p/@558hsyof?referral_code={new_referral_code}"
 
         message_text = (
             f"🎁 {display_name}さん、登録ありがとうございます！クーポンをお届けします！\n\n"
