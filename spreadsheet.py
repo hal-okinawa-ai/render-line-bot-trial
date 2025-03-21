@@ -15,7 +15,7 @@ def connect_sheet():
         print(f"❌ Sheets接続エラー: {e}")
         return None
 
-def update_spreadsheet(user_id, referral_code, referred_by, display_name):
+def update_spreadsheet(user_id, referral_code, referred_by, display_name, inviter_name):
     sheet = connect_sheet()
 
     if sheet is None:
@@ -23,5 +23,5 @@ def update_spreadsheet(user_id, referral_code, referred_by, display_name):
         return
 
     referred_count = len(sheet.findall(referred_by))
-    sheet.append_row([user_id, referral_code, referred_by, referred_count, display_name])
-    print(f"✅ {user_id} ({display_name}) をスプレッドシートに記録")
+    sheet.append_row([user_id, referral_code, referred_by, referred_count, display_name, inviter_name])
+    print(f"✅ {user_id} ({display_name}) をスプレッドシートに記録（紹介者: {inviter_name}）")
