@@ -1,21 +1,35 @@
-from linebot.models import TextSendMessage
-from config import LINE_ACCESS_TOKEN
-from linebot import LineBotApi
-from line_handlers.coupon import register_referral
+from database import connect_db
+from spreadsheet import update_spreadsheet
+from line_handlers.profile import get_user_name
+from line_handlers.coupon import send_coupon
 
-line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
+def register_referral(user_id, referral_code):
+    conn = connect_db()
+    cur = conn.cursor()
 
-def handle_message(event):
-    user_id = event.source.user_id
-    msg = event.message.text.strip()
+    cur.execute("SELECT line_id FROM users WHERE referral_code = %s", (referral_code,))
+    referred_by = cur.fetchone()
 
-    if msg.startswith("紹介コード:"):
-        code = msg.split(":")[1].strip()
-        if register_referral(user_id, code):
-            reply = f"✅ 紹介コード {code} を登録しました！"
-        else:
-            reply = "❌ 無効な紹介コードです。"
-    else:
-        reply = "❓ 紹介コードを入力する場合は「紹介コード:ABC123」と送信してください。"
+    if referred_by:
+        referred_by_id = referred_by[0]
+        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by_id, user_id))
+        conn.commit()
 
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        display_name = get_user_name(user_id)
+        update_spreadsheet(user_id, referral_code, referred_by_id, display_name)  # ←名前追加
+
+        send_coupon(user_id)
+
+        cur.execute("SELECT COUNT(*) FROM users WHERE referred_by = %s", (referred_by_id,))
+        referral_count = cur.fetchone()[0]
+
+        if referral_count >= 3:
+            send_coupon(referred_by_id, inviter=True)
+
+        cur.close()
+        conn.close()
+        return True
+
+    cur.close()
+    conn.close()
+    return False

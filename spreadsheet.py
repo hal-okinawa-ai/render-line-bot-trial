@@ -15,13 +15,13 @@ def connect_sheet():
         print(f"❌ Sheets接続エラー: {e}")
         return None
 
-def update_spreadsheet(user_id, referral_code, referred_by):
+def update_spreadsheet(user_id, referral_code, referred_by, display_name):
     sheet = connect_sheet()
-    if not sheet:
+
+    if sheet is None:
+        print("❌ スプレッドシート接続エラー")
         return
-    try:
-        referred_count = len(sheet.findall(referred_by))
-        sheet.append_row([user_id, referral_code, referred_by, referred_count])
-        print(f"✅ Sheetsに記録: {user_id}")
-    except Exception as e:
-        print(f"❌ Sheets書き込みエラー: {e}")
+
+    referred_count = len(sheet.findall(referred_by))
+    sheet.append_row([user_id, referral_code, referred_by, referred_count, display_name])
+    print(f"✅ {user_id} ({display_name}) をスプレッドシートに記録")
