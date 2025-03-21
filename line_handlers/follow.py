@@ -30,14 +30,21 @@ def handle_follow(event):
     # スプレッドシート更新
     update_spreadsheet(user_id, referral_code, None, display_name, None, None)
 
-    # 新規ユーザーへのメッセージ
+    # # 新規ユーザーへのメッセージ
+    # welcome_message = (
+    #     f"ご登録ありがとうございます！\n\n"
+    #     f"クーポンコードはこちらです！\n\n"
+    #     f"【{coupon_code}】"
+    # )
+
     welcome_message = (
-        f"ご登録ありがとうございます！\n\n"
-        f"クーポンコードはこちらです！\n\n"
-        f"【{coupon_code}】"
+        f"ご登録ありがとうございます🎉\n\n"
+        f"あなたの紹介コードはこちらです👇\n"
+        f"【{referral_code}】\n\n"
+        f"以下のリンクと一緒にシェアしてください✨\n"
+        f"https://lin.ee/xxxxxxx"
     )
 
-    # この返信処理が必要です
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=welcome_message)
