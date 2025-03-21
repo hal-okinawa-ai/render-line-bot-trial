@@ -1,15 +1,14 @@
 from flask import Flask, request, jsonify
-from linebot import WebhookHandler
+from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, FollowEvent
-from config import LINE_CHANNEL_SECRET,  LINE_ACCESS_TOKEN
+from config import LINE_CHANNEL_SECRET, LINE_ACCESS_TOKEN
 from line_handlers.follow import handle_follow
 from line_handlers.message import handle_message
 from database import init_db
+import os
 
-line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)  # この行を追加（なければ）
-
-@handler.add(MessageEvent, message=TextMessage)
+line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -28,7 +27,7 @@ def webhook():
 
 @handler.add(FollowEvent)
 def handle_follow_event(event):
-    handle_follow(event)
+    handle_follow(event, line_bot_api)
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message_event(event):
