@@ -1,7 +1,6 @@
-# follow.py
 from linebot.models import FollowEvent, TextSendMessage
 from linebot import LineBotApi
-from config import LINE_ACCESS_TOKEN
+from config import LINE_ACCESS_TOKEN, YOUR_BOT_ID
 from database import connect_db
 from utils.referral_code import generate_referral_code
 from .profile import get_user_name
@@ -16,6 +15,7 @@ def handle_follow(event: FollowEvent):
     conn = connect_db()
     if conn is None:
         print("❌ DB接続エラー")
+        line_bot_api.push_message(user_id, TextSendMessage(text="システムエラーが発生しました。"))
         return
 
     cur = conn.cursor()
@@ -29,13 +29,14 @@ def handle_follow(event: FollowEvent):
     cur.close()
     conn.close()
 
-    # 招待URLを作成（実際のあなたのBotのIDに置き換えてください）
-    invite_url = f"https://line.me/R/ti/p/@558hsyof?referral_code={referral_code}"
+    # 招待用URL（友だちに共有するURL）を作成
+    invite_url = f"https://line.me/R/ti/p/@{YOUR_BOT_ID}?referral_code={referral_code}"
 
-    # メッセージに招待用URLを追加
+    # メッセージにユーザー自身の紹介コードも表示
     welcome_message = (
         f"🎉 {display_name}さん、友だち追加ありがとうございます！\n\n"
-        f"🔗 あなた専用の紹介URLはこちらです👇\n{invite_url}\n\n"
+        f"✅ あなたの招待コード：{referral_code}\n\n"
+        f"🔗 あなた専用の招待URLはこちら👇\n{invite_url}\n\n"
         "友だちにシェアして特典をゲットしましょう！"
     )
 
