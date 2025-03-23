@@ -18,8 +18,8 @@ def register_referral(user_id, referral_code, line_bot_api):
         cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by_id, user_id))
         conn.commit()
 
-        display_name = get_user_name(user_id)  # <- 修正済
-        inviter_name = get_user_name(referred_by_id)  # <- 修正済
+        display_name = get_user_name(user_id, line_bot_api)
+        inviter_name = get_user_name(referred_by_id, line_bot_api)
         coupon_code = generate_coupon_code()
 
         now_japan_time = get_japan_time()
