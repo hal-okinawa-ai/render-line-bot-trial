@@ -41,8 +41,6 @@ def handle_follow(event):
         f"ご登録ありがとうございます🎉\n\n"
         f"あなたの紹介コードはこちらです👇\n"
         f"【{referral_code}】\n\n"
-        f"以下のリンクと一緒にシェアしてください✨\n"
-        f"https://lin.ee/xxxxxxx"
     )
 
     line_bot_api.reply_message(
