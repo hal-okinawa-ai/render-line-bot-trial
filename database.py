@@ -1,30 +1,19 @@
+import os
 import psycopg2
-from config import DATABASE_URL
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def connect_db():
     try:
-        return psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(
+            host=os.getenv("DATABASE_HOST"),
+            database=os.getenv("DATABASE_NAME"),
+            user=os.getenv("DATABASE_USER"),
+            password=os.getenv("DATABASE_PASSWORD"),
+            port=os.getenv("DATABASE_PORT")
+        )
+        return conn
     except Exception as e:
         print(f"❌ DB接続エラー: {e}")
         return None
-
-def init_db():
-    conn = connect_db()
-    if conn:
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                line_id TEXT UNIQUE,
-                referral_code TEXT,
-                referred_by TEXT,
-                display_name TEXT,
-                coupon_sent BOOLEAN DEFAULT FALSE,
-                inviter_coupon_sent BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("✅ DB初期化完了")
