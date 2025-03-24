@@ -60,7 +60,4 @@ def get_user_referral_code(user_id):
     cur.close()
     conn.close()
 
-    if result:
-        return result[0]
-    else:
-        return None
+    return result[0] if result else None
