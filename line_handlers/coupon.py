@@ -7,12 +7,7 @@ def generate_coupon_code(length=8):
 
 def send_coupon(line_bot_api, user_id, coupon_code, inviter=False):
 
-    # message_text = f"ご登録ありがとうございます！\nクーポンコードはこちらです！\n\n{coupon_code}"
-    message_text = (
-        f"ご登録ありがとうございます🎉\n\n"
-        f"クーポンコードはこちらです👇\n"
-        f"【{referral_code}】\n\n"
-    )
+    message_text = f"ご登録ありがとうございます！\nクーポンコードはこちらです！\n\n{coupon_code}"
 
     # coupon_url = "https://your-coupon-page.com"
     # message_text = f"🎁 おめでとうございます！クーポンコードをプレゼントします！\n\n🔗 {coupon_url}\n\nクーポンコード: {coupon_code}"
