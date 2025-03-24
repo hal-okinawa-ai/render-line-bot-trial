@@ -1,34 +1,44 @@
+# utils/referral.py
 from database import connect_db
-from utils.coupon import send_coupon
-from utils.profile import get_user_name
 from spreadsheet import update_spreadsheet
+from utils.coupon import generate_coupon_code, send_coupon
+from line_handlers.profile import get_user_name
+from utils.common import get_japan_time
 
 def register_referral(user_id, referral_code, line_bot_api):
     conn = connect_db()
     cur = conn.cursor()
 
+    # 紹介コードを持つユーザー（紹介者）を特定
     cur.execute("SELECT line_id FROM users WHERE referral_code = %s", (referral_code,))
-    referred_by = cur.fetchone()
+    inviter = cur.fetchone()
 
-    if referred_by:
-        referred_by_id = referred_by[0]
+    if inviter:
+        inviter_id = inviter[0]
 
-        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by_id, user_id))
+        # 紹介されたユーザーのデータを更新
+        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (inviter_id, user_id))
         conn.commit()
 
-        display_name = get_user_name(user_id, line_bot_api)
-        inviter_name = get_user_name(referred_by_id, line_bot_api)
+        # 新規ユーザーのクーポンコード生成
+        new_coupon_code = generate_coupon_code()
 
-        update_spreadsheet(user_id, referral_code, referred_by_id, display_name, inviter_name)
+        # 紹介された人の名前と紹介者の名前を取得
+        display_name = get_user_name(user_id, line_bot_api)           # 紹介された本人
+        inviter_name = get_user_name(inviter_id, line_bot_api)        # 紹介者の名前
 
-        coupon_code = "NEWUSER123"  # ここで新規ユーザー向けクーポンコードを生成する処理に置き換えてください。
-        send_coupon(user_id, coupon_code)
+        # 日本時間取得
+        japan_time = get_japan_time()
 
-        # 紹介者への通知
-        line_bot_api.push_message(
-            referred_by_id,
-            TextSendMessage(text=f"{inviter_name}さん、ご友人が登録しました！ありがとうございます😊")
-        )
+        # スプレッドシートに記録
+        update_spreadsheet(user_id, referral_code, inviter_id, display_name, inviter_name, japan_time)
+
+        # 紹介された本人にクーポンを送信
+        send_coupon(user_id, new_coupon_code, line_bot_api)
+
+        # 紹介者（inviter）にもお礼メッセージ送信
+        thanks_message = f"{inviter_name}さん、紹介ありがとうございます！\n友だちがあなたの紹介コードを利用しました。"
+        line_bot_api.push_message(inviter_id, TextSendMessage(text=thanks_message))
 
         cur.close()
         conn.close()
@@ -38,13 +48,14 @@ def register_referral(user_id, referral_code, line_bot_api):
     conn.close()
     return False
 
-# ↓↓↓ 以下を追加する ↓↓↓
-
+# ユーザーの紹介コードを取得
 def get_user_referral_code(user_id):
     conn = connect_db()
     cur = conn.cursor()
+
     cur.execute("SELECT referral_code FROM users WHERE line_id = %s", (user_id,))
     result = cur.fetchone()
+
     cur.close()
     conn.close()
 
