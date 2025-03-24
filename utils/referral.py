@@ -3,7 +3,7 @@ from database import connect_db
 from spreadsheet import update_spreadsheet
 from utils.coupon import generate_coupon_code, send_coupon
 from utils.profile import get_user_name
-from utils.common import get_japan_time
+from utils.timezone import get_japan_time
 from linebot.models import TextSendMessage
 
 def register_referral(user_id, referral_code, line_bot_api):
