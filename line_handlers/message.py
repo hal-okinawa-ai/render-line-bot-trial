@@ -2,16 +2,18 @@ from linebot.models import TextSendMessage  # ←追加
 from utils.referral import register_referral
 
 def handle_message(event, line_bot_api):
-    user_message = event.message.text
     user_id = event.source.user_id
+    referral_code = event.message.text.strip()
 
-    if user_message.startswith("紹介コード:"):
-        referral_code = user_message.split(":")[1].strip()
+    # user_idの値を確認
+    print(f"✅ user_id: {user_id}, referral_code: {referral_code}")
+
+    if user_id:
         if register_referral(user_id, referral_code, line_bot_api):
-            reply_text = f"✅ 紹介コード {referral_code} を登録しました！"
+            reply_text = "紹介コードが登録されました！"
         else:
-            reply_text = "❌ 無効な紹介コードです"
+            reply_text = "紹介コードが無効です。"
     else:
-        reply_text = "❓ 紹介コードを入力する場合は「紹介コード:XXXXXX」と送信してください。"
+        reply_text = "ユーザーIDを取得できませんでした。再度お試しください。"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
