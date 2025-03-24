@@ -2,7 +2,7 @@ from database import connect_db
 from linebot.models import TextSendMessage
 from utils.referral_code import generate_referral_code
 from utils.coupon import generate_coupon_code, send_coupon
-from line_handlers.profile import get_user_name
+from utils.profile import get_user_name
 
 def handle_follow(event, line_bot_api):
     user_id = event.source.user_id
