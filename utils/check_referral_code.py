@@ -10,6 +10,6 @@ def check_referral_code(line_id):
     return result[0] if result else None
 
 if __name__ == "__main__":
-    user_line_id = 'あなたのLINEユーザーID'  # 確認したいユーザーのLINE ID
+    user_line_id = '崎山'  # 確認したいユーザーのLINE ID
     referral_code = check_referral_code(user_line_id)
     print(referral_code)
