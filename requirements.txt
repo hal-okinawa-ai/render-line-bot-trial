@@ -3,5 +3,6 @@ requests
 gunicorn
 line-bot-sdk
 psycopg2-binary
+python-dotenv
 gspread
 oauth2client
