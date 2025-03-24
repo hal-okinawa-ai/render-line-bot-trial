@@ -1,9 +1,7 @@
-from linebot.models import TextSendMessage
-from utils.profile import get_user_name
-from utils.coupon import generate_coupon_code, send_coupon
 from database import connect_db
+from utils.coupon import send_coupon
+from utils.profile import get_user_name
 from spreadsheet import update_spreadsheet
-from utils.timezone import get_japan_time
 
 def register_referral(user_id, referral_code, line_bot_api):
     conn = connect_db()
@@ -15,26 +13,21 @@ def register_referral(user_id, referral_code, line_bot_api):
     if referred_by:
         referred_by_id = referred_by[0]
 
+        cur.execute("UPDATE users SET referred_by = %s WHERE line_id = %s", (referred_by_id, user_id))
+        conn.commit()
+
         display_name = get_user_name(user_id, line_bot_api)
         inviter_name = get_user_name(referred_by_id, line_bot_api)
 
-        coupon_code = generate_coupon_code()
-        now_japan_time = get_japan_time()
+        update_spreadsheet(user_id, referral_code, referred_by_id, display_name, inviter_name)
 
-        cur.execute("""
-            UPDATE users SET referred_by = %s, coupon_code = %s WHERE line_id = %s
-        """, (referred_by_id, coupon_code, user_id))
-        conn.commit()
+        coupon_code = "NEWUSER123"  # ここで新規ユーザー向けクーポンコードを生成する処理に置き換えてください。
+        send_coupon(user_id, coupon_code)
 
-        update_spreadsheet(user_id, referral_code, referred_by_id, display_name, inviter_name, now_japan_time)
-
-        # Bさんにクーポン送信
-        send_coupon(line_bot_api, user_id, coupon_code)
-
-        # Aさんに通知を送る
+        # 紹介者への通知
         line_bot_api.push_message(
             referred_by_id,
-            TextSendMessage(text=f"🎉 {display_name}さんがあなたの招待コードで友だち追加しました！ご紹介ありがとうございます！")
+            TextSendMessage(text=f"{inviter_name}さん、ご友人が登録しました！ありがとうございます😊")
         )
 
         cur.close()
@@ -44,3 +37,18 @@ def register_referral(user_id, referral_code, line_bot_api):
     cur.close()
     conn.close()
     return False
+
+# ↓↓↓ 以下を追加する ↓↓↓
+
+def get_user_referral_code(user_id):
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute("SELECT referral_code FROM users WHERE line_id = %s", (user_id,))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if result:
+        return result[0]
+    else:
+        return None
