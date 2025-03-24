@@ -12,6 +12,15 @@ def handle_message(event, line_bot_api):
             reply_text = f"🎁紹介URLはこちらです:\n{referral_url}"
         else:
             reply_text = "⚠️ 紹介コードが見つかりませんでした。"
+
+    # 紹介コードがわからない場合の対応を追加
+    elif user_message == "紹介コードを教えて":
+        referral_code = get_user_referral_code(user_id)
+        if referral_code:
+            reply_text = f"🔖 あなたの紹介コードは【{referral_code}】です。"
+        else:
+            reply_text = "⚠️ 紹介コードが見つかりませんでした。"
+
     else:
         reply_text = "申し訳ありませんが、対応できないメッセージです。"
 
