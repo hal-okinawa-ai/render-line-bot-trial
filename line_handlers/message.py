@@ -2,28 +2,23 @@ from linebot.models import TextSendMessage
 from utils.referral import get_user_referral_code
 
 def handle_message(event, line_bot_api):
-    text = event.message.text.strip()
-    
-    if text in ["紹介URLを教えて", "バナーをタップ"]:  # ←ここでバナーのイベントにも対応できるように
-        user_id = event.source.user_id
+    user_id = event.source.user_id
+    user_message = event.message.text.strip()
+
+    if user_message == "紹介URLを教えて":
         referral_code = get_user_referral_code(user_id)
-        
         if referral_code:
             referral_url = f"https://line.me/R/ti/p/@558hsyof?referral={referral_code}"
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"🎁紹介URLはこちらです:\n{referral_url}\n\n友だちにシェアして特典をゲットしましょう！")
-            )
+            reply_text = f"🎁紹介URLはこちらです:\n{referral_url}"
         else:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="⚠️ 紹介コードが見つかりませんでした。")
-            )
+            reply_text = "⚠️ 紹介コードが見つかりませんでした。"
     else:
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="申し訳ありませんが、対応できないメッセージです。")
-        )
+        reply_text = "申し訳ありませんが、対応できないメッセージです。"
+
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_text)
+    )
 
 
 # from linebot.models import TextSendMessage
