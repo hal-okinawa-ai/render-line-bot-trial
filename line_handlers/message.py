@@ -18,7 +18,7 @@ def send_referral_url(event, line_bot_api):
     referral_code = get_user_referral_code(user_id)
 
     if referral_code:
-        referral_url = f"https://line.me/R/ti/p/{YOUR_BOT_ID}?referral={referral_code}"
+        referral_url = f"https://line.me/R/ti/p/@558hsyof?referral={referral_code}"
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=f"🎁紹介URLはこちらです:\n{referral_url}\n\n友だちにシェアして特典をゲットしましょう！")
