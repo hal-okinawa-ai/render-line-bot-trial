@@ -1,6 +1,6 @@
 from linebot.models import TextSendMessage
-from line_handlers.profile import get_user_name
-from line_handlers.coupon import generate_coupon_code, send_coupon
+from utils.profile import get_user_name
+from utils.coupon import generate_coupon_code, send_coupon
 from database import connect_db
 from spreadsheet import update_spreadsheet
 from utils.timezone import get_japan_time
